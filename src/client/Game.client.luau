@@ -13,6 +13,8 @@ local PlayAgainEvent = events:WaitForChild("PlayAgainEvent")
 local StartEvent = events:WaitForChild("StartEvent")
 local ResetEvent = events:WaitForChild("ResetEvent")
 local GoEvent = events:WaitForChild("GoEvent")
+local LivesEvent = events:WaitForChild("LivesEvent")
+local GameOverEvent = events:WaitForChild("GameOverEvent")
 
 -- root
 local screen = Instance.new("ScreenGui")
@@ -68,6 +70,83 @@ for i=1,8 do
     b.Parent = progressFrame
     progressBoxes[i] = b
 end
+
+-- HP bar (bound to the Humanoid's real Health) + lives pips (5 attempts)
+local hpFrame = Instance.new("Frame")
+hpFrame.Size = UDim2.new(0.24,0,0.028,0)
+hpFrame.Position = UDim2.new(0.38,0,0.165,0)
+hpFrame.BackgroundColor3 = Color3.new(0,0,0)
+hpFrame.BackgroundTransparency = 0.4
+hpFrame.Parent = screen
+
+local hpFill = Instance.new("Frame")
+hpFill.Size = UDim2.new(1,0,1,0)
+hpFill.BackgroundColor3 = Color3.fromRGB(64,217,64)
+hpFill.BorderSizePixel = 0
+hpFill.Parent = hpFrame
+
+local hpText = Instance.new("TextLabel")
+hpText.Size = UDim2.new(1,0,1,0)
+hpText.BackgroundTransparency = 1
+hpText.Text = "HP"
+hpText.Font = Enum.Font.GothamBold
+hpText.TextScaled = true
+hpText.TextColor3 = Color3.new(1,1,1)
+hpText.TextStrokeTransparency = 0.5
+hpText.TextStrokeColor3 = Color3.new(0,0,0)
+hpText.Parent = hpFrame
+
+local livesLabel = Instance.new("TextLabel")
+livesLabel.Size = UDim2.new(0.07,0,0.03,0)
+livesLabel.Position = UDim2.new(0.38,0,0.20,0)
+livesLabel.BackgroundTransparency = 1
+livesLabel.Text = "LIVES"
+livesLabel.Font = Enum.Font.GothamBold
+livesLabel.TextScaled = true
+livesLabel.TextColor3 = Color3.new(1,1,1)
+livesLabel.TextStrokeTransparency = 0.5
+livesLabel.TextStrokeColor3 = Color3.new(0,0,0)
+livesLabel.Parent = screen
+
+local livesFrame = Instance.new("Frame")
+livesFrame.Size = UDim2.new(0.16,0,0.03,0)
+livesFrame.Position = UDim2.new(0.455,0,0.20,0)
+livesFrame.BackgroundTransparency = 1
+livesFrame.Parent = screen
+local lifePips = {}
+for i=1,5 do
+    local pip = Instance.new("Frame")
+    pip.Size = UDim2.new(1/5, -4, 1, 0)
+    pip.Position = UDim2.new((i-1)/5, 2, 0, 0)
+    pip.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    pip.BorderSizePixel = 0
+    pip.Parent = livesFrame
+    lifePips[i] = pip
+end
+
+local function setLives(n)
+    for i=1,5 do
+        if i <= n then
+            lifePips[i].BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+        else
+            lifePips[i].BackgroundColor3 = Color3.new(0.25,0.25,0.25)
+        end
+    end
+end
+LivesEvent.OnClientEvent:Connect(setLives)
+
+local function bindHealth(char)
+    local hum = char:WaitForChild("Humanoid")
+    local function upd()
+        local f = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+        hpFill.Size = UDim2.new(f,0,1,0)
+        hpFill.BackgroundColor3 = Color3.fromHSV(f * 0.33, 0.75, 0.85)
+    end
+    hum.HealthChanged:Connect(upd)
+    upd()
+end
+if player.Character then bindHealth(player.Character) end
+player.CharacterAdded:Connect(bindHealth)
 
 -- Reset button
 local resetBtn = Instance.new("TextButton")
@@ -237,6 +316,46 @@ playAgainBtn.MouseButton1Click:Connect(function()
     startOverlay.Visible = false
     endOverlay.Visible = false
     doCountdownAndFire()
+end)
+
+-- Game over overlay (lives exhausted)
+local gameOverOverlay = Instance.new("Frame")
+gameOverOverlay.Size = UDim2.new(1,0,1,0)
+gameOverOverlay.BackgroundColor3 = Color3.new(0,0,0)
+gameOverOverlay.BackgroundTransparency = 0.45
+gameOverOverlay.Visible = false
+gameOverOverlay.ZIndex = 10
+gameOverOverlay.Parent = screen
+
+local gameOverText = Instance.new("TextLabel")
+gameOverText.Size = UDim2.new(0.6,0,0.3,0)
+gameOverText.Position = UDim2.new(0.2,0,0.2,0)
+gameOverText.BackgroundTransparency = 1
+gameOverText.Text = "GAME OVER"
+gameOverText.Font = Enum.Font.GothamBlack
+gameOverText.TextScaled = true
+gameOverText.TextColor3 = Color3.fromRGB(255, 90, 90)
+gameOverText.Parent = gameOverOverlay
+
+local gameOverBtn = Instance.new("TextButton")
+gameOverBtn.Size = UDim2.new(0,220,0,64)
+gameOverBtn.Position = UDim2.new(0.5,-110,0.6,-32)
+gameOverBtn.Text = "PLAY AGAIN"
+gameOverBtn.Font = Enum.Font.GothamBold
+gameOverBtn.TextScaled = true
+gameOverBtn.Parent = gameOverOverlay
+
+gameOverBtn.MouseButton1Click:Connect(function()
+    PlayAgainEvent:FireServer()
+    startOverlay.Visible = false
+    endOverlay.Visible = false
+    gameOverOverlay.Visible = false
+    doCountdownAndFire()
+end)
+
+GameOverEvent.OnClientEvent:Connect(function()
+    started = false
+    gameOverOverlay.Visible = true
 end)
 
 -- RenderStepped timer

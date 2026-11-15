@@ -25,6 +25,14 @@ local GoEvent = Instance.new("RemoteEvent")
 GoEvent.Name = "GoEvent"
 GoEvent.Parent = events
 
+local LivesEvent = Instance.new("RemoteEvent")
+LivesEvent.Name = "LivesEvent"
+LivesEvent.Parent = events
+
+local GameOverEvent = Instance.new("RemoteEvent")
+GameOverEvent.Name = "GameOverEvent"
+GameOverEvent.Parent = events
+
 local StartEvent = Instance.new("RemoteEvent")
 StartEvent.Name = "StartEvent"
 StartEvent.Parent = events
@@ -640,6 +648,9 @@ PlayAgainEvent.OnServerEvent:Connect(function(pl)
     playerState[pl] = playerState[pl] or {}
     playerState[pl].lastCheckpoint = nil
     playerState[pl].started = false
+    -- fresh run: lives back to full
+    playerState[pl].lives = 5
+    LivesEvent:FireClient(pl, 5)
     -- fresh run: respawns go back to the main spawn until a checkpoint is hit
     local course0 = Workspace:FindFirstChild("RainbowObbyCourse")
     local ms0 = course0 and course0:FindFirstChild("MainSpawn") or Workspace:FindFirstChild("MainSpawn")
@@ -665,6 +676,7 @@ GoEvent.OnServerEvent:Connect(function(pl)
     playerState[pl] = playerState[pl] or {}
     playerState[pl].started = true
     playerState[pl].startTick = tick()
+    LivesEvent:FireClient(pl, playerState[pl].lives or 5)
     -- unfreeze character
     local char = pl.Character
     if char then
@@ -686,12 +698,25 @@ end)
 
 -- Player joining: give default respawn and connect
 Players.PlayerAdded:Connect(function(pl)
-    playerState[pl] = { started = false }
+    playerState[pl] = { started = false, lives = 5 }
     -- deterministic first spawn: the main spawn, never a random checkpoint pad
     local course1 = Workspace:FindFirstChild("RainbowObbyCourse")
     local ms1 = course1 and course1:FindFirstChild("MainSpawn")
     if ms1 then pl.RespawnLocation = ms1 end
     pl.CharacterAdded:Connect(function(char)
+        -- lives: each death during an active run costs one life; 0 = game over
+        local humanoid = char:WaitForChild("Humanoid")
+        humanoid.Died:Connect(function()
+            local st = playerState[pl]
+            if st and st.started and st.lives and st.lives > 0 then
+                st.lives = st.lives - 1
+                LivesEvent:FireClient(pl, st.lives)
+                if st.lives <= 0 then
+                    st.started = false
+                    GameOverEvent:FireClient(pl)
+                end
+            end
+        end)
         wait(0.5)
         -- safety net for the FIRST spawn only; checkpoint respawns keep their pad
         local st = playerState[pl]
