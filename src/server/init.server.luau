@@ -21,6 +21,10 @@ local PlayAgainEvent = Instance.new("RemoteEvent")
 PlayAgainEvent.Name = "PlayAgainEvent"
 PlayAgainEvent.Parent = events
 
+local GoEvent = Instance.new("RemoteEvent")
+GoEvent.Name = "GoEvent"
+GoEvent.Parent = events
+
 local StartEvent = Instance.new("RemoteEvent")
 StartEvent.Name = "StartEvent"
 StartEvent.Parent = events
@@ -71,29 +75,44 @@ end)
 
 -- utility to make signs
 local function makeSign(parent, text, pos)
+    -- sign part and BillboardGui that always faces the camera
     local sign = Instance.new("Part")
     sign.Size = Vector3.new(6, 4, 0.5)
     sign.Anchored = true
     sign.Position = pos
     sign.BrickColor = BrickColor.new("Institutional white")
     sign.Parent = parent
-    local surf = Instance.new("SurfaceGui")
-    surf.Face = Enum.NormalId.Top
-    surf.AlwaysOnTop = true
-    surf.Parent = sign
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee = sign
+    bb.Size = UDim2.new(0,140,0,35) -- approximate studs scale
+    bb.StudsOffset = Vector3.new(0,2.5,0)
+    bb.AlwaysOnTop = true
+    bb.Parent = sign
+
     local lab = Instance.new("TextLabel")
     lab.Size = UDim2.new(1,0,1,0)
     lab.BackgroundTransparency = 1
     lab.Text = text
-    lab.TextColor3 = Color3.new(0,0,0)
+    lab.TextColor3 = Color3.new(1,1,1)
     lab.TextScaled = true
     lab.Font = Enum.Font.GothamBold
-    lab.Parent = surf
+    lab.TextStrokeTransparency = 0.4
+    lab.TextStrokeColor3 = Color3.new(0,0,0)
+    lab.Parent = bb
     return sign
 end
 
 -- small helpers: tree, lamp, cloud, sky block
 local function makeTree(parent, pos, scale, color)
+    -- small island under tree so it is not floating
+    local isl = Instance.new("Part")
+    isl.Size = Vector3.new(7,1,7)
+    isl.Position = pos + Vector3.new(0,-0.5,0)
+    isl.Anchored = true
+    isl.BrickColor = BrickColor.new("Earth green")
+    isl.Parent = parent
+
     local trunk = Instance.new("Part")
     trunk.Size = Vector3.new(1*scale, 4*scale, 1*scale)
     trunk.Position = pos + Vector3.new(0,2*scale,0)
@@ -109,6 +128,14 @@ local function makeTree(parent, pos, scale, color)
 end
 
 local function makeLamp(parent, pos)
+    -- small island under lamp
+    local isl = Instance.new("Part")
+    isl.Size = Vector3.new(7,1,7)
+    isl.Position = pos + Vector3.new(0,-0.5,0)
+    isl.Anchored = true
+    isl.BrickColor = BrickColor.new("Dark stone grey")
+    isl.Parent = parent
+
     local post = Instance.new("Part")
     post.Size = Vector3.new(0.5,6,0.5)
     post.Position = pos + Vector3.new(0,3,0)
@@ -173,6 +200,12 @@ local function makeKillBrick(parent, pos, size)
     p.Material = Enum.Material.Neon
     p.Name = "KillBrick"
     p.Parent = parent
+    -- lava glow on EVERY kill brick
+    local glow = Instance.new("PointLight")
+    glow.Color = Color3.fromRGB(255, 75, 75)
+    glow.Range = 9
+    glow.Brightness = 1.5
+    glow.Parent = p
     p.Touched:Connect(function(hit)
         local pl = Players:GetPlayerFromCharacter(hit.Parent)
         if not pl then return end
@@ -198,7 +231,7 @@ local function buildCourse()
     local base = Workspace:FindFirstChild("Baseplate")
     if base then
         base.CanCollide = false
-        base.Transparency = 0.6
+        base.Transparency = 1
     end
 
     -- Start platform
@@ -221,14 +254,27 @@ local function buildCourse()
 
     makeSign(course, "make.fun", START_POS + Vector3.new(0,6,0))
 
-    -- rainbow arch above start
-    for i=1,7 do
-        local ring = Instance.new("Part")
-        ring.Size = Vector3.new(30 + i*2, 1, 2)
-        ring.Anchored = true
-        ring.Position = START_POS + Vector3.new(0, 12 + i*0.2, -4 - i*0.5)
-        ring.BrickColor = BrickColor.new(Color3.fromRGB(255 - i*20, 30 + i*20, 180 - i*10))
-        ring.Parent = course
+    -- rainbow arch above start: true semicircular arc of 13 rotated blocks
+    local archColors = {
+        Color3.fromRGB(255, 0, 0), Color3.fromRGB(255, 85, 0), Color3.fromRGB(255, 170, 0),
+        Color3.fromRGB(255, 255, 0), Color3.fromRGB(170, 255, 0), Color3.fromRGB(0, 220, 80),
+        Color3.fromRGB(0, 200, 160), Color3.fromRGB(0, 170, 255), Color3.fromRGB(0, 100, 255),
+        Color3.fromRGB(85, 0, 255), Color3.fromRGB(170, 0, 255), Color3.fromRGB(255, 0, 200),
+        Color3.fromRGB(255, 0, 120)
+    }
+    local archCenter = START_POS + Vector3.new(0, 1, -6)
+    local archRadius = 13
+    for i = 1, 13 do
+        local theta = (i - 1) / 12 * math.pi
+        local bx = archCenter.X + archRadius * math.cos(theta)
+        local by = archCenter.Y + archRadius * math.sin(theta)
+        local block = Instance.new("Part")
+        block.Size = Vector3.new(4.6, 2, 2)
+        block.Anchored = true
+        block.CFrame = CFrame.new(bx, by, archCenter.Z) * CFrame.Angles(0, 0, theta + math.pi / 2)
+        block.BrickColor = BrickColor.new(archColors[i])
+        block.Name = "RainbowArch"..i
+        block.Parent = course
     end
 
     -- stages: build a continuous ribbon in per-stage segments
@@ -252,6 +298,10 @@ local function buildCourse()
         local cpPos = Vector3.new(0, 2.5, z_front - 4)
         local cp = makeCheckpoint(stageModel, i, cpPos)
         cp.Parent = stageModel
+        -- stage name sign above checkpoint
+        local names = {"MERAH","ORANYE","KUNING","HIJAU","BIRU","UNGU","PINK","EMAS"}
+        local stext = "STAGE "..tostring(i).." - "..(names[i] or "")
+        makeSign(stageModel, stext, cpPos + Vector3.new(0,3.5,0))
 
         -- simple decoration: flags (placed outside ribbon area X beyond ±12)
         for f=1,3 do
@@ -317,7 +367,26 @@ local function buildCourse()
             -- three kill bricks spanning ribbon width (player must jump)
             for k=1,3 do
                 local kz = z_center - 6 - (k-1)*8
-                makeKillBrick(stageModel, Vector3.new(0, 3.5 + 0.5, kz), Vector3.new(10,1,2))
+                local kb = makeKillBrick(stageModel, Vector3.new(0, 3.5 + 0.5, kz), Vector3.new(10,1,2))
+                if k == 1 then
+                    -- add prominent billboard warning above first kill brick of stage 4
+                    local bb = Instance.new("BillboardGui")
+                    bb.Adornee = kb
+                    bb.Size = UDim2.new(0,120,0,24)
+                    bb.StudsOffset = Vector3.new(0,2.5,0)
+                    bb.AlwaysOnTop = true
+                    bb.Parent = kb
+                    local t = Instance.new("TextLabel")
+                    t.Size = UDim2.new(1,0,1,0)
+                    t.BackgroundTransparency = 1
+                    t.Text = "LAVA - AWAS!"
+                    t.TextColor3 = Color3.new(1,0.9,0.9)
+                    t.TextScaled = true
+                    t.Font = Enum.Font.GothamBold
+                    t.TextStrokeTransparency = 0.4
+                    t.TextStrokeColor3 = Color3.new(0,0,0)
+                    t.Parent = bb
+                end
             end
         elseif i == 5 then
             -- zigzag platforms across stage, no ribbon under
@@ -421,6 +490,12 @@ local function onCheckpointTouched(spawnPart, hit)
     playerState[pl].lastCheckpoint = spawnPart
     -- set player's RespawnLocation
     pl.RespawnLocation = spawnPart
+    -- if player hasn't started yet, touching any checkpoint will start their run
+    if not playerState[pl].started then
+        playerState[pl].started = true
+        playerState[pl].startTick = tick()
+        StartEvent:FireClient(pl)
+    end
     -- find stage index from parent name
     local stageModel = spawnPart.Parent
     local stageNum = tonumber(stageModel and stageModel.Name:match("Stage(%d+)") or "0") or 0
@@ -442,10 +517,10 @@ local function connectCheckpoints()
                 finish.Touched:Connect(function(hit)
                     local pl = Players:GetPlayerFromCharacter(hit.Parent)
                     if not pl then return end
-                    local state = playerState[pl]
-                    if not state or not state.started then return end
+                    local state = playerState[pl] or {}
                     local elapsed = tick() - (state.startTick or tick())
                     state.started = false
+                    playerState[pl] = state
                     WinEvent:FireClient(pl, elapsed)
                 end)
             end
@@ -455,21 +530,44 @@ end
 
 -- Start a player's run
 PlayAgainEvent.OnServerEvent:Connect(function(pl)
+    -- Preparation phase: reset checkpoint, set respawn to MainSpawn if present, teleport to start and freeze player
+    playerState[pl] = playerState[pl] or {}
+    playerState[pl].lastCheckpoint = nil
+    playerState[pl].started = false
+    -- fresh run: respawns go back to the main spawn until a checkpoint is hit
+    local course0 = Workspace:FindFirstChild("RainbowObbyCourse")
+    local ms0 = course0 and course0:FindFirstChild("MainSpawn") or Workspace:FindFirstChild("MainSpawn")
+    if ms0 then pl.RespawnLocation = ms0 end
+    -- teleport player to start and freeze
+    local char = pl.Character
+    if char then
+        local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            humanoid.JumpHeight = 0
+        end
+        local hr0 = char:FindFirstChild("HumanoidRootPart")
+        if hr0 then hr0.CFrame = CFrame.new(START_POS + Vector3.new(0,5,0)) end
+    else
+        pl:LoadCharacter()
+    end
+end)
+
+-- GoEvent: unfreeze and actually start the run
+GoEvent.OnServerEvent:Connect(function(pl)
     playerState[pl] = playerState[pl] or {}
     playerState[pl].started = true
     playerState[pl].startTick = tick()
-    playerState[pl].lastCheckpoint = nil
-    -- fresh run: respawns go back to the main spawn until a checkpoint is hit
-    local course0 = Workspace:FindFirstChild("RainbowObbyCourse")
-    local ms0 = course0 and course0:FindFirstChild("MainSpawn")
-    if ms0 then pl.RespawnLocation = ms0 end
-    -- teleport player to start
+    -- unfreeze character
     local char = pl.Character
-    local hr0 = char and char:FindFirstChild("HumanoidRootPart")
-    if hr0 then
-        hr0.CFrame = CFrame.new(START_POS + Vector3.new(0,5,0))
-    else
-        pl:LoadCharacter()
+    if char then
+        local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+            humanoid.JumpHeight = 7.2
+        end
     end
     StartEvent:FireClient(pl)
 end)
