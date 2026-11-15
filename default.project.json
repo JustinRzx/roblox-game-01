@@ -2,11 +2,6 @@
   "name": "Rainbow Obby Rush",
   "tree": {
     "$className": "DataModel",
-    "Players": {
-      "$properties": {
-        "CharacterAutoLoads": false
-      }
-    },
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"

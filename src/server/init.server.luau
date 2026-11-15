@@ -210,6 +210,15 @@ local function buildCourse()
     start.Name = "StartPlatform"
     start.Parent = course
 
+    -- main spawn on the start platform (place has no other SpawnLocation)
+    local mainSpawn = Instance.new("SpawnLocation")
+    mainSpawn.Size = Vector3.new(10, 1, 10)
+    mainSpawn.Anchored = true
+    mainSpawn.Position = START_POS + Vector3.new(0, 1.5, 0)
+    mainSpawn.Neutral = true
+    mainSpawn.Name = "MainSpawn"
+    mainSpawn.Parent = course
+
     makeSign(course, "make.fun", START_POS + Vector3.new(0,6,0))
 
     -- rainbow arch above start
@@ -256,13 +265,13 @@ local function buildCourse()
 
         -- additional decoration along the path: trees and lamps
         if i % 2 == 0 then
-            makeTree(stageModel, Vector3.new(-18,0,z), 1)
-            makeTree(stageModel, Vector3.new(18,0,z), 0.9)
-            makeLamp(stageModel, Vector3.new(-14,0,z))
-            makeLamp(stageModel, Vector3.new(14,0,z))
+            makeTree(stageModel, Vector3.new(-18,0,z_center), 1)
+            makeTree(stageModel, Vector3.new(18,0,z_center), 0.9)
+            makeLamp(stageModel, Vector3.new(-14,0,z_center))
+            makeLamp(stageModel, Vector3.new(14,0,z_center))
         else
-            makeTree(stageModel, Vector3.new(-16,0,z), 0.8)
-            makeTree(stageModel, Vector3.new(16,0,z), 0.8)
+            makeTree(stageModel, Vector3.new(-16,0,z_center), 0.8)
+            makeTree(stageModel, Vector3.new(16,0,z_center), 0.8)
         end
 
         -- per-stage obstacles
@@ -449,12 +458,17 @@ PlayAgainEvent.OnServerEvent:Connect(function(pl)
     playerState[pl] = playerState[pl] or {}
     playerState[pl].started = true
     playerState[pl].startTick = tick()
+    playerState[pl].lastCheckpoint = nil
+    -- fresh run: respawns go back to the main spawn until a checkpoint is hit
+    local course0 = Workspace:FindFirstChild("RainbowObbyCourse")
+    local ms0 = course0 and course0:FindFirstChild("MainSpawn")
+    if ms0 then pl.RespawnLocation = ms0 end
     -- teleport player to start
     local char = pl.Character
-    if char and char.PrimaryPart then
-        char:SetPrimaryPartCFrame(CFrame.new(START_POS + Vector3.new(0,5,0)))
+    local hr0 = char and char:FindFirstChild("HumanoidRootPart")
+    if hr0 then
+        hr0.CFrame = CFrame.new(START_POS + Vector3.new(0,5,0))
     else
-        -- ensure spawn location
         pl:LoadCharacter()
     end
     StartEvent:FireClient(pl)
@@ -469,11 +483,18 @@ end)
 -- Player joining: give default respawn and connect
 Players.PlayerAdded:Connect(function(pl)
     playerState[pl] = { started = false }
+    -- deterministic first spawn: the main spawn, never a random checkpoint pad
+    local course1 = Workspace:FindFirstChild("RainbowObbyCourse")
+    local ms1 = course1 and course1:FindFirstChild("MainSpawn")
+    if ms1 then pl.RespawnLocation = ms1 end
     pl.CharacterAdded:Connect(function(char)
         wait(0.5)
-        -- ensure they spawn on start platform
-        local hr = char:FindFirstChildWhichIsA("HumanoidRootPart")
-        if hr then hr.CFrame = CFrame.new(START_POS + Vector3.new(0,5,0)) end
+        -- safety net for the FIRST spawn only; checkpoint respawns keep their pad
+        local st = playerState[pl]
+        if st and not st.lastCheckpoint then
+            local hr = char:FindFirstChild("HumanoidRootPart")
+            if hr then hr.CFrame = CFrame.new(START_POS + Vector3.new(0,5,0)) end
+        end
     end)
 end)
 
