@@ -85,9 +85,11 @@ local function makeSign(parent, text, pos)
 
     local bb = Instance.new("BillboardGui")
     bb.Adornee = sign
-    bb.Size = UDim2.new(0,140,0,35) -- approximate studs scale
+    -- approximate studs size; will be constrained by MaxDistance
+    bb.Size = UDim2.new(0,100,0,22)
     bb.StudsOffset = Vector3.new(0,2.5,0)
-    bb.AlwaysOnTop = true
+    bb.AlwaysOnTop = false
+    bb.MaxDistance = 55
     bb.Parent = sign
 
     local lab = Instance.new("TextLabel")
@@ -113,15 +115,16 @@ local function makeTree(parent, pos, scale, color)
     isl.BrickColor = BrickColor.new("Earth green")
     isl.Parent = parent
 
+    local s = (scale or 1) * 1.5
     local trunk = Instance.new("Part")
-    trunk.Size = Vector3.new(1*scale, 4*scale, 1*scale)
-    trunk.Position = pos + Vector3.new(0,2*scale,0)
+    trunk.Size = Vector3.new(1*s, 4*s, 1*s)
+    trunk.Position = pos + Vector3.new(0,2*s,0)
     trunk.Anchored = true
     trunk.BrickColor = BrickColor.new("Reddish brown")
     trunk.Parent = parent
     local leaves = Instance.new("Part")
-    leaves.Size = Vector3.new(4*scale,3*scale,4*scale)
-    leaves.Position = pos + Vector3.new(0,4*scale,0)
+    leaves.Size = Vector3.new(4*s,3*s,4*s)
+    leaves.Position = pos + Vector3.new(0,4*s,0)
     leaves.Anchored = true
     leaves.BrickColor = BrickColor.new(color or "Bright green")
     leaves.Parent = parent
@@ -200,12 +203,16 @@ local function makeKillBrick(parent, pos, size)
     p.Material = Enum.Material.Neon
     p.Name = "KillBrick"
     p.Parent = parent
-    -- lava glow on EVERY kill brick
-    local glow = Instance.new("PointLight")
-    glow.Color = Color3.fromRGB(255, 75, 75)
-    glow.Range = 9
-    glow.Brightness = 1.5
-    glow.Parent = p
+    -- add fire and orange light on every kill brick
+    local fire = Instance.new("Fire")
+    fire.Size = 6
+    fire.Heat = 8
+    fire.Parent = p
+    local ol = Instance.new("PointLight")
+    ol.Color = Color3.fromRGB(255,120,0)
+    ol.Range = 9
+    ol.Brightness = 1.5
+    ol.Parent = p
     p.Touched:Connect(function(hit)
         local pl = Players:GetPlayerFromCharacter(hit.Parent)
         if not pl then return end
@@ -252,7 +259,17 @@ local function buildCourse()
     mainSpawn.Name = "MainSpawn"
     mainSpawn.Parent = course
 
-    makeSign(course, "make.fun", START_POS + Vector3.new(0,6,0))
+    -- four corner bushes on the start platform (platform top y=6)
+    for _, bp in ipairs({Vector3.new(-16, 6.75, 11), Vector3.new(16, 6.75, 11), Vector3.new(-16, 6.75, -11), Vector3.new(16, 6.75, -11)}) do
+        local bush = Instance.new("Part")
+        bush.Size = Vector3.new(2, 1.5, 2)
+        bush.Position = bp
+        bush.Anchored = true
+        bush.BrickColor = BrickColor.new("Bright green")
+        bush.Parent = course
+    end
+
+    -- start make.fun text removed (replaced by logo banner)
 
     -- rainbow arch above start: true semicircular arc of 13 rotated blocks
     local archColors = {
@@ -285,23 +302,26 @@ local function buildCourse()
         stageModel.Name = "Stage"..i
         stageModel.Parent = course
 
-        -- ribbon segment (the only walkable surface along X -5..5)
-        local ribbon = Instance.new("Part")
-        ribbon.Size = Vector3.new(10, 1, STAGE_DEPTH)
-        ribbon.Position = Vector3.new(0, 3.5, z_center)
-        ribbon.Anchored = true
-        ribbon.BrickColor = BrickColor.new(COLORS[i])
-        ribbon.Name = "RibbonStage"..i
-        ribbon.Parent = stageModel
+        -- ribbon segment only for stages 1,4,6,8
+        if i == 1 or i == 4 or i == 6 or i == 8 then
+            local ribbon = Instance.new("Part")
+            ribbon.Size = Vector3.new(10, 1, STAGE_DEPTH)
+            ribbon.Position = Vector3.new(0, 3.5, z_center)
+            ribbon.Anchored = true
+            ribbon.BrickColor = BrickColor.new(COLORS[i])
+            ribbon.Name = "RibbonStage"..i
+            ribbon.Parent = stageModel
+        end
 
         -- checkpoint pad: provide position that makeCheckpoint will offset so pad bottom touches ribbon
         local cpPos = Vector3.new(0, 2.5, z_front - 4)
         local cp = makeCheckpoint(stageModel, i, cpPos)
         cp.Parent = stageModel
-        -- stage name sign above checkpoint
+        -- stage name sign to the right of the checkpoint (x = +9.5 relative)
         local names = {"MERAH","ORANYE","KUNING","HIJAU","BIRU","UNGU","PINK","EMAS"}
         local stext = "STAGE "..tostring(i).." - "..(names[i] or "")
-        makeSign(stageModel, stext, cpPos + Vector3.new(0,3.5,0))
+        local signPos = cpPos + Vector3.new(9.5, 2.5, 0)
+        makeSign(stageModel, stext, signPos)
 
         -- simple decoration: flags (placed outside ribbon area X beyond ±12)
         for f=1,3 do
@@ -314,6 +334,7 @@ local function buildCourse()
         end
 
         -- additional decoration along the path: trees and lamps
+        -- keep old lower trees
         if i % 2 == 0 then
             makeTree(stageModel, Vector3.new(-18,0,z_center), 1)
             makeTree(stageModel, Vector3.new(18,0,z_center), 0.9)
@@ -323,6 +344,19 @@ local function buildCourse()
             makeTree(stageModel, Vector3.new(-16,0,z_center), 0.8)
             makeTree(stageModel, Vector3.new(16,0,z_center), 0.8)
         end
+        -- add two larger trees on islands at ribbon height (y=3), with a bush each
+        local islY = 3
+        makeTree(stageModel, Vector3.new(-10,islY,z_center), 1)
+        makeTree(stageModel, Vector3.new(10,islY,z_center), 1)
+        local bushL = Instance.new("Part")
+        bushL.Size = Vector3.new(2,1.5,2)
+        bushL.Position = Vector3.new(-10, islY + 0.75, z_center)
+        bushL.Anchored = true
+        bushL.BrickColor = BrickColor.new("Bright green")
+        bushL.Parent = stageModel
+        local bushR = bushL:Clone()
+        bushR.Position = Vector3.new(10, islY + 0.75, z_center)
+        bushR.Parent = stageModel
 
         -- per-stage obstacles
         if i == 1 then
@@ -335,12 +369,42 @@ local function buildCourse()
                 hr.BrickColor = BrickColor.new("Brown")
                 hr.Parent = stageModel
             end
+            -- add one lava bar between hurdle 2 and 3
+            local lavaZ = z_center - 6 - (2-1)*8 - 4
+            local lava = makeKillBrick(stageModel, Vector3.new(0, 3.5 + 0.5, lavaZ), Vector3.new(10,1,2))
+            -- billboard warning above this lava
+            local bb = Instance.new("BillboardGui")
+            bb.Adornee = lava
+            bb.Size = UDim2.new(0,100,0,22)
+            bb.StudsOffset = Vector3.new(0,2.5,0)
+            bb.AlwaysOnTop = false
+            bb.MaxDistance = 55
+            bb.Parent = lava
+            local t = Instance.new("TextLabel")
+            t.Size = UDim2.new(1,0,1,0)
+            t.BackgroundTransparency = 1
+            t.Text = "LAVA - AWAS!"
+            t.TextColor3 = Color3.new(1,0.9,0.9)
+            t.TextScaled = true
+            t.Font = Enum.Font.GothamBold
+            t.TextStrokeTransparency = 0.4
+            t.TextStrokeColor3 = Color3.new(0,0,0)
+            t.Parent = bb
         elseif i == 2 then
             -- floating platforms across Z (no ribbon under them). Keep gaps <= 6 studs
-            for pidx=1,6 do
+            -- stage 2: 5 platforms (6x1x6), top y=5, x pattern 0, +2.5, -2.5, 0, +2.5
+            local pattern = {0, 2.5, -2.5, 0, 2.5}
+            local startZ = cpPos.Z
+            local nextFront = -((2)*STAGE_DEPTH)
+            local endZ = nextFront - 4
+            local total = 5
+            for pidx=1,total do
+                local frac = (pidx-1)/(total-1)
+                local zpos = startZ + frac * (endZ - startZ)
+                local x = pattern[pidx]
                 local p = Instance.new("Part")
                 p.Size = Vector3.new(6,1,6)
-                p.Position = Vector3.new(0, 5 + (pidx%2==0 and 1 or 0), z_center - 10 + (pidx-1) * 6)
+                p.Position = Vector3.new(x, 5, zpos)
                 p.Anchored = true
                 p.BrickColor = BrickColor.new("Orange")
                 p.Parent = stageModel
@@ -367,14 +431,16 @@ local function buildCourse()
             -- three kill bricks spanning ribbon width (player must jump)
             for k=1,3 do
                 local kz = z_center - 6 - (k-1)*8
-                local kb = makeKillBrick(stageModel, Vector3.new(0, 3.5 + 0.5, kz), Vector3.new(10,1,2))
+                local size = Vector3.new(10,1,3)
+                local kb = makeKillBrick(stageModel, Vector3.new(0, 3.5 + 0.5, kz), size)
                 if k == 1 then
-                    -- add prominent billboard warning above first kill brick of stage 4
+                    -- prominent billboard warning above first kill brick of stage 4
                     local bb = Instance.new("BillboardGui")
                     bb.Adornee = kb
-                    bb.Size = UDim2.new(0,120,0,24)
+                    bb.Size = UDim2.new(0,100,0,22)
                     bb.StudsOffset = Vector3.new(0,2.5,0)
-                    bb.AlwaysOnTop = true
+                    bb.AlwaysOnTop = false
+                    bb.MaxDistance = 55
                     bb.Parent = kb
                     local t = Instance.new("TextLabel")
                     t.Size = UDim2.new(1,0,1,0)
@@ -389,12 +455,19 @@ local function buildCourse()
                 end
             end
         elseif i == 5 then
-            -- zigzag platforms across stage, no ribbon under
-            for pidx=1,7 do
-                local px = (pidx%2==0) and 3 or -3
+            -- stage 5: 6 platforms (6x1x6), top y=5.5, x pattern +3,-3,+3,-3,+3,-3, z evenly between cp and next
+            local pattern = {3, -3, 3, -3, 3, -3}
+            local startZ = cpPos.Z
+            local nextFront = -((5)*STAGE_DEPTH)
+            local endZ = nextFront - 4
+            local total = 6
+            for pidx=1,total do
+                local frac = (pidx-1)/(total-1)
+                local zpos = startZ + frac * (endZ - startZ)
+                local x = pattern[pidx]
                 local p = Instance.new("Part")
                 p.Size = Vector3.new(6,1,6)
-                p.Position = Vector3.new(px, 5, z_center - 12 + (pidx-1)*4)
+                p.Position = Vector3.new(x, 5.5, zpos)
                 p.Anchored = true
                 p.BrickColor = BrickColor.new("Bright blue")
                 p.Parent = stageModel
@@ -470,8 +543,7 @@ local function buildCourse()
             lbl.TextColor3 = Color3.new(1, 0.8, 0)
             lbl.Parent = sign
 
-            -- small make.fun plaque
-            makeSign(stageModel, "make.fun", Vector3.new(0,9,z_center - STAGE_DEPTH/2 + 6))
+            -- small make.fun plaque removed (replaced by logo banner)
         end
     end
 
@@ -480,6 +552,49 @@ local function buildCourse()
         makeCloud(course, Vector3.new(-120 + c*40, 40 + (c%2)*4, -c*STAGE_DEPTH*1.2), 18 + (c%3)*4)
         makeSkyBlock(course, Vector3.new(120 - c*30, 30 + (c%2)*3, -c*STAGE_DEPTH*1.1), 6 + (c%3), COLORS[((c-1)%#COLORS)+1])
     end
+    -- add larger flat clouds under path (sea of clouds)
+    for i=1,8 do
+        local x = -30 + (i-1)*(60/7)
+        local z = - (i-1)*36
+        local w = 24 + (i%3)*8
+        local d = 14 + (i%4)*2
+        local c = Instance.new("Part")
+        c.Size = Vector3.new(w, 1, d)
+        c.Position = Vector3.new(x, -6, z)
+        c.Anchored = true
+        c.BrickColor = BrickColor.new("Institutional white")
+        c.Transparency = 0.15
+        c.Parent = course
+    end
+
+    -- add logo banners: start gate and finish
+    local function makeLogoBanner(parent, pos)
+        local board = Instance.new("Part")
+        board.Size = Vector3.new(20,5,0.5)
+        board.Position = pos
+        board.Anchored = true
+        board.BrickColor = BrickColor.new("Institutional white")
+        board.Parent = parent
+        local dec = Instance.new("Decal")
+        dec.Texture = "rbxassetid://114952625373692"
+        dec.Face = Enum.NormalId.Front
+        dec.Parent = board
+        -- supports
+        local left = Instance.new("Part")
+        left.Size = Vector3.new(0.6,5,0.6)
+        left.Position = pos + Vector3.new(-9.2,-0.0,0)
+        left.Anchored = true
+        left.BrickColor = BrickColor.new("Dark stone grey")
+        left.Parent = parent
+        local right = left:Clone()
+        right.Position = pos + Vector3.new(9.2, -0.0, 0)
+        right.Parent = parent
+    end
+    -- place start banner above head height (board bottom at y=10 clears a walking character)
+    makeLogoBanner(course, Vector3.new(0,12.5,-18))
+    -- place finish banner above stage 8 finish (z_center for stage 8)
+    local z8 = -((8-1)*STAGE_DEPTH + STAGE_DEPTH/2)
+    makeLogoBanner(course, Vector3.new(0,12.5, z8 - 6))
 end
 
 -- handler for checkpoints
