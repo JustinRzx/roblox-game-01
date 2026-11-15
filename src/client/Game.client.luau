@@ -19,12 +19,12 @@ local screen = Instance.new("ScreenGui")
 screen.Name = "MF_HUD"
 screen.Parent = playerGui
 
--- HUD center-top
+-- HUD center-top (compact pill — the old 50%-wide bar read as a black box)
 local hud = Instance.new("Frame")
-hud.Size = UDim2.new(0.5,0,0.12,0)
-hud.Position = UDim2.new(0.25,0,0.02,0)
+hud.Size = UDim2.new(0.24,0,0.10,0)
+hud.Position = UDim2.new(0.38,0,0.015,0)
 hud.BackgroundColor3 = Color3.new(0,0,0)
-hud.BackgroundTransparency = 0.35
+hud.BackgroundTransparency = 0.5
 hud.Parent = screen
 
 local timerLabel = Instance.new("TextLabel")
@@ -55,8 +55,8 @@ stageLabel.Parent = hud
 
 -- progress boxes
 local progressFrame = Instance.new("Frame")
-progressFrame.Size = UDim2.new(0.5,0,0.04,0)
-progressFrame.Position = UDim2.new(0.25,0,0.13,0)
+progressFrame.Size = UDim2.new(1,0,0.3,0)
+progressFrame.Position = UDim2.new(0,0,1.1,0)
 progressFrame.BackgroundTransparency = 1
 progressFrame.Parent = hud
 local progressBoxes = {}
@@ -102,7 +102,7 @@ local objective = Instance.new("TextLabel")
 objective.Size = UDim2.new(0.8,0,0.12,0)
 objective.Position = UDim2.new(0.1,0,0.28,0)
 objective.BackgroundTransparency = 1
-objective.Text = "Lewati 8 stage pelangi, injak semua checkpoint, hindari LAVA merah, dan capai podium make.fun FINISH secepat mungkin!"
+objective.Text = "Race through 8 rainbow stages, hit every checkpoint, dodge the red LAVA, and reach the make.fun FINISH podium as fast as you can!"
 objective.TextWrapped = true
 objective.TextScaled = true
 objective.Font = Enum.Font.Gotham
@@ -112,7 +112,7 @@ objective.Parent = startOverlay
 local playBtn = Instance.new("TextButton")
 playBtn.Size = UDim2.new(0,240,0,72)
 playBtn.Position = UDim2.new(0.5,-120,0.55,-36)
-playBtn.Text = "MULAI"
+playBtn.Text = "START"
 playBtn.Font = Enum.Font.GothamBold
 playBtn.TextScaled = true
 playBtn.Parent = startOverlay
@@ -141,7 +141,7 @@ local function showToast(text)
     delay(4, function() t:Destroy() end)
 end
 
-showToast("Lewati 8 stage - Hindari LAVA - Capai FINISH!")
+showToast("Clear 8 stages - Dodge the LAVA - Reach the FINISH!")
 
 -- End overlay
 local endOverlay = Instance.new("Frame")
@@ -165,13 +165,13 @@ winText.Parent = endOverlay
 local playAgainBtn = Instance.new("TextButton")
 playAgainBtn.Size = UDim2.new(0,220,0,64)
 playAgainBtn.Position = UDim2.new(0.5,-110,0.6,-32)
-playAgainBtn.Text = "MAIN LAGI"
+playAgainBtn.Text = "PLAY AGAIN"
 playAgainBtn.Font = Enum.Font.GothamBold
 playAgainBtn.TextScaled = true
 playAgainBtn.Parent = endOverlay
 
 -- stage names
-local STAGE_NAMES = {"MERAH","ORANYE","KUNING","HIJAU","BIRU","UNGU","PINK","EMAS"}
+local STAGE_NAMES = {"RED","ORANGE","YELLOW","GREEN","BLUE","PURPLE","PINK","GOLD"}
 
 -- timer state
 local started = false
@@ -209,7 +209,7 @@ WinEvent.OnClientEvent:Connect(function(elapsed)
     local mins = math.floor(elapsed/60)
     local secs = math.floor(elapsed - mins*60)
     local dec = math.floor((elapsed - math.floor(elapsed))*10)
-    winText.Text = "KAMU MENANG!\nWaktu: "..string.format("%02d:%02d.%d", mins, secs, dec)
+    winText.Text = "YOU WIN!\nTime: "..string.format("%02d:%02d.%d", mins, secs, dec)
     endOverlay.Visible = true
     started = false
 end)

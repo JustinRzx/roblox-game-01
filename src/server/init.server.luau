@@ -73,37 +73,8 @@ killPlane.Touched:Connect(function(hit)
     end
 end)
 
--- utility to make signs
-local function makeSign(parent, text, pos)
-    -- sign part and BillboardGui that always faces the camera
-    local sign = Instance.new("Part")
-    sign.Size = Vector3.new(6, 4, 0.5)
-    sign.Anchored = true
-    sign.Position = pos
-    sign.BrickColor = BrickColor.new("Institutional white")
-    sign.Parent = parent
-
-    local bb = Instance.new("BillboardGui")
-    bb.Adornee = sign
-    -- approximate studs size; will be constrained by MaxDistance
-    bb.Size = UDim2.new(0,100,0,22)
-    bb.StudsOffset = Vector3.new(0,2.5,0)
-    bb.AlwaysOnTop = false
-    bb.MaxDistance = 55
-    bb.Parent = sign
-
-    local lab = Instance.new("TextLabel")
-    lab.Size = UDim2.new(1,0,1,0)
-    lab.BackgroundTransparency = 1
-    lab.Text = text
-    lab.TextColor3 = Color3.new(1,1,1)
-    lab.TextScaled = true
-    lab.Font = Enum.Font.GothamBold
-    lab.TextStrokeTransparency = 0.4
-    lab.TextStrokeColor3 = Color3.new(0,0,0)
-    lab.Parent = bb
-    return sign
-end
+-- (floating BillboardGui signs removed in round 4 per owner feedback:
+--  stage names now live as SurfaceGui text on the checkpoint pads themselves)
 
 -- small helpers: tree, lamp, cloud, sky block
 local function makeTree(parent, pos, scale, color)
@@ -317,11 +288,19 @@ local function buildCourse()
         local cpPos = Vector3.new(0, 2.5, z_front - 4)
         local cp = makeCheckpoint(stageModel, i, cpPos)
         cp.Parent = stageModel
-        -- stage name sign to the right of the checkpoint (x = +9.5 relative)
-        local names = {"MERAH","ORANYE","KUNING","HIJAU","BIRU","UNGU","PINK","EMAS"}
-        local stext = "STAGE "..tostring(i).." - "..(names[i] or "")
-        local signPos = cpPos + Vector3.new(9.5, 2.5, 0)
-        makeSign(stageModel, stext, signPos)
+        -- stage name printed ON the checkpoint pad (top face) — no floating text
+        local names = {"RED","ORANGE","YELLOW","GREEN","BLUE","PURPLE","PINK","GOLD"}
+        local padGui = Instance.new("SurfaceGui")
+        padGui.Face = Enum.NormalId.Top
+        padGui.Parent = cp
+        local padLbl = Instance.new("TextLabel")
+        padLbl.Size = UDim2.new(1,0,1,0)
+        padLbl.BackgroundTransparency = 1
+        padLbl.Text = "STAGE "..tostring(i).." - "..(names[i] or "")
+        padLbl.TextScaled = true
+        padLbl.Font = Enum.Font.GothamBlack
+        padLbl.TextColor3 = Color3.new(0.08,0.08,0.08)
+        padLbl.Parent = padGui
 
         -- simple decoration: flags (placed outside ribbon area X beyond ±12)
         for f=1,3 do
@@ -383,7 +362,7 @@ local function buildCourse()
             local t = Instance.new("TextLabel")
             t.Size = UDim2.new(1,0,1,0)
             t.BackgroundTransparency = 1
-            t.Text = "LAVA - AWAS!"
+            t.Text = "LAVA - WATCH OUT!"
             t.TextColor3 = Color3.new(1,0.9,0.9)
             t.TextScaled = true
             t.Font = Enum.Font.GothamBold
@@ -445,7 +424,7 @@ local function buildCourse()
                     local t = Instance.new("TextLabel")
                     t.Size = UDim2.new(1,0,1,0)
                     t.BackgroundTransparency = 1
-                    t.Text = "LAVA - AWAS!"
+                    t.Text = "LAVA - WATCH OUT!"
                     t.TextColor3 = Color3.new(1,0.9,0.9)
                     t.TextScaled = true
                     t.Font = Enum.Font.GothamBold
@@ -575,10 +554,22 @@ local function buildCourse()
         board.Anchored = true
         board.BrickColor = BrickColor.new("Institutional white")
         board.Parent = parent
-        local dec = Instance.new("Decal")
-        dec.Texture = "rbxassetid://114952625373692"
-        dec.Face = Enum.NormalId.Front
-        dec.Parent = board
+        -- wordmark as SurfaceGui text on BOTH faces: the uploaded logo decal
+        -- (asset 114952625373692) is stuck in Roblox moderation ("Pending")
+        -- and renders blank in-game; text always renders.
+        for _, face in ipairs({Enum.NormalId.Front, Enum.NormalId.Back}) do
+            local sg = Instance.new("SurfaceGui")
+            sg.Face = face
+            sg.Parent = board
+            local tl = Instance.new("TextLabel")
+            tl.Size = UDim2.new(1,0,1,0)
+            tl.BackgroundTransparency = 1
+            tl.Text = "make.fun"
+            tl.TextScaled = true
+            tl.Font = Enum.Font.GothamBlack
+            tl.TextColor3 = Color3.fromRGB(25,20,25)
+            tl.Parent = sg
+        end
         -- supports
         local left = Instance.new("Part")
         left.Size = Vector3.new(0.6,5,0.6)
